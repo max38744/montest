@@ -54,7 +54,7 @@ class Logger():
         self.show_header = show_header
         self.header_only_once = header_only_once
         self.header_count = 0
-        self.client = boto3.client('sqs')
+        self.client = boto3.client('sqs', region_name='ap-northeast-2')
         self.buffer = []
         self.max_size = 13
 
