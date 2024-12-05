@@ -9,7 +9,7 @@ import time
 import contextlib
 from resources.cpu import cpu_resources, memory_resorces, disk_resources, get_process_cpu_usage
 import boto3
-
+import uuid
 
 # 파일을 닫을 수 있도록 하는 Contextlib 라이브러리 사용, contextmanager 데코레이터를 사용
 @contextlib.contextmanager
@@ -34,7 +34,7 @@ class Logger():
     def __init__(
             self,
             fname=None, style=None, date_format=None,
-            refresh_interval=1, iter_limit=None,
+            refresh_interval=20, iter_limit=2,
             show_header=False, header_only_once=True,
             threshold_for_target=20,  watch_target="CPU",
             show_units=True, sep=',',
@@ -55,6 +55,10 @@ class Logger():
         self.header_only_once = header_only_once
         self.header_count = 0
         self.client = boto3.client('sqs')
+        self.buffer = []
+        self.max_size = 13
+
+
         # unit 여부
         self.show_units = show_units
         self.sep = sep
@@ -79,11 +83,32 @@ class Logger():
         fmt += ('|{:>' + str(self.col_width) + '} ') * len(self.cpu_field_names)
         return fmt
     
-    def send_to_queue(self, message) : 
+    def process_alert(self, message) : 
+        response = self.client.send_message(
+            QueueUrl='https://sqs.ap-northeast-2.amazonaws.com/205930649271/alert_queue.fifo',
+            MessageBody=message,
+            MessageGroupId='alert_group',  # 그룹 ID 설정
+            MessageDeduplicationId=str(uuid.uuid4()),  # 고유한 ID를 생성하여 중복 방지
+        )
+
+        response = self.client.send_message(
+            QueueUrl='https://sqs.ap-northeast-2.amazonaws.com/205930649271/process_queue',
+            MessageBody='process_queue',
+            DelaySeconds=60,
+            MessageAttributes={
+                'Attribute1': {  # 'String' 대신 올바른 키 이름 사용
+                    'StringValue': message,  # 문자열 값
+                    'DataType': 'String'  # DataType은 반드시 'String', 'Number', 또는 'Binary'여야 함
+                }
+            }
+        )
+
+
+    def send_to_resource_queue(self, message) : 
         response = self.client.send_message(
             QueueUrl='https://sqs.ap-northeast-2.amazonaws.com/205930649271/monitoring',
             MessageBody='test-1',
-            DelaySeconds=123,
+            DelaySeconds=62,
             MessageAttributes={
                 'Attribute1': {  # 'String' 대신 올바른 키 이름 사용
                     'StringValue': message,  # 문자열 값
@@ -130,7 +155,14 @@ class Logger():
         else :
             return cpu_resource, mem_resource, disk_resource, []
 
+    def add_buffer(self, data) :
+        self.buffer.append(data)
+        if len(self.buffer) >= self.max_size:
+            self.send_to_resource_queue('\n'.join(self.buffer))
+            self.process_buffer()
 
+    def process_buffer(self):
+        self.buffer.clear()  # 버퍼 비우기
 
     def write_record(self):
     # 기본 데이터 기록
@@ -157,7 +189,8 @@ class Logger():
             base_data = [t, cpu_percent, percent_per_core, ram_percent, swap_percent, ram_available, 
                          disk_usage, read_count, write_count, read_bytes, write_bytes]
             if self.style == 'csv':
-                print(self.sep.join(map(str, base_data)), file=hf)  # 기본 데이터 기록
+                self.add_buffer(self.sep.join(map(str, base_data)))
+
             elif self.style == 'tabular':
                 print(self.tabular_format.format(*base_data), file=hf)
             else:
@@ -175,10 +208,10 @@ class Logger():
                         proc['name'],  # 프로세스 이름
                         proc['cpu_percent']  # CPU 사용량
                     ]
-                    print(self.sep.join(map(str, proc_data)), file=pf)
+                    #print(self.sep.join(map(str, proc_data)), file=pf)
                     message = f"{message}\n {self.sep.join(map(str, proc_data))}"
                     if idx >= 4 :
-                        self.send_to_queue(message)
+                        self.process_alert(message)
                         break
 
     # 객체 자체도 호출할 수 있도록 다시 말해 Logger 객체 자체가 호출될 수 있도록 하는 메서드
