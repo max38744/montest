@@ -187,7 +187,7 @@ class Logger():
 
 
             base_data = [t, cpu_percent, percent_per_core, ram_percent, swap_percent, ram_available, 
-                         disk_usage, read_count, write_count, read_bytes, write_bytes]
+                         disk_usage, read_count, write_count, read_bytes, write_bytes, "resource_1"]
             if self.style == 'csv':
                 self.add_buffer(self.sep.join(map(str, base_data)))
 
@@ -198,21 +198,20 @@ class Logger():
 
         # 프로세스 데이터 기록
         if stats[3]:  # 상위 프로세스가 있는 경우
-            process_file = f"{self.fname}_processes.csv"  # 프로세스 정보를 기록할 파일
-            message = ''
-            with smart_open(process_file, 'a') as pf:
-                for idx, proc in enumerate(stats[3]):
-                    proc_data = [
-                        t,  # 동일 타임스탬프
-                        proc['pid'],  # 프로세스 ID
-                        proc['name'],  # 프로세스 이름
-                        proc['cpu_percent']  # CPU 사용량
-                    ]
-                    #print(self.sep.join(map(str, proc_data)), file=pf)
-                    message = f"{message}\n {self.sep.join(map(str, proc_data))}"
-                    if idx >= 4 :
-                        self.process_alert(message)
-                        break
+            pro_message = ''
+            for idx, proc in enumerate(stats[3]):
+                proc_data = [
+                    t,  # 동일 타임스탬프
+                    proc['pid'],  # 프로세스 ID
+                    proc['name'],  # 프로세스 이름
+                    proc['cpu_percent'],  # CPU 사용량
+                    "resource_1"
+                ]
+                #print(self.sep.join(map(str, proc_data)), file=pf)
+                pro_message = f"{pro_message}\n {self.sep.join(map(str, proc_data))}"
+                if idx >= 4 :
+                    self.process_alert(pro_message)
+                    break
 
     # 객체 자체도 호출할 수 있도록 다시 말해 Logger 객체 자체가 호출될 수 있도록 하는 메서드
     def __call__(self, n_iter=None):
