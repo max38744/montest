@@ -27,16 +27,15 @@ def smart_open(filename=None, mode='a'):
 
 
 
-
 # Logger 클래스가 실행되면 argparser를 통해 받은 인자를 반영하여 클래스를 생성한다. 
 # 인자가 설정되어 있지 않으면 아래의 값에서 설정한 default로 설정
 class Logger():
     def __init__(
             self,
             fname=None, style=None, date_format=None,
-            refresh_interval=20, iter_limit=2,
+            refresh_interval=5, iter_limit=30,
             show_header=False, header_only_once=True,
-            threshold_for_target=20,  watch_target="CPU",
+            threshold_for_target=20, watch_target="CPU",
             show_units=True, sep=',',
             ):
         
@@ -238,10 +237,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-l', '--loop', metavar='INTERVAL', dest='refresh_interval', type=float, default=1.0)
-    parser.add_argument('-n', '--niter', metavar='MAXITER', dest='iter_limit', type=int, default=-1)
+    parser.add_argument('-l', '--loop', metavar='INTERVAL', dest='refresh_interval', type=float, default=5.0)
+    parser.add_argument('-n', '--niter', metavar='MAXITER', dest='iter_limit', type=int, default=30)
     parser.add_argument('--header', dest='show_header', action='store_true', default=True)
-    parser.add_argument('-c', '--csv', dest='style', action='store_const', const='csv')
+    parser.add_argument('-c', '--csv', dest='style', action='store_const', const='csv', default='csv')
     parser.add_argument('-t', '--tabular', dest='style', action='store_const', const='tabular')
     parser.add_argument('-d', '--date-custom', dest='date_format', action='store')
     parser.add_argument('--no-units', dest='show_units', action='store_false', default=True)
